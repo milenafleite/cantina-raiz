@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: cantina-raiz
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    disk:
+      name: dados
+      mountPath: /data
+      sizeGB: 1
