@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cantina - Colégio Curso Raiz</title>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Outfit:wght@700;800;900&display=swap" rel="stylesheet">
 <style>
 :root {
   --laranja:      #F47920;
@@ -38,7 +38,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--fundo); color: var(-
   position: sticky; top: 0; z-index: 100;
 }
 .topo-marca { display: flex; align-items: center; gap: 12px; }
-.topo-marca h1 { font-family: 'Fredoka One', cursive; color: #fff; font-size: 1.6rem; letter-spacing: 1px; }
+.topo-marca h1 { font-family: 'Outfit', sans-serif; color: #fff; font-size: 1.6rem; letter-spacing: 1px; }
 .topo-marca span { color: #FFE0B2; font-size: .85rem; font-weight: 600; }
 .topo-nav { display: flex; gap: 8px; flex-wrap: wrap; }
 .btn-nav {
@@ -112,7 +112,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--fundo); color: var(-
 
 /* CARRINHO */
 .carr-cab { background: var(--laranja); padding: 14px; text-align: center; }
-.carr-cab h2 { color: #fff; font-family: 'Fredoka One'; font-size: 1.3rem; }
+.carr-cab h2 { color: #fff; font-family: 'Outfit'; font-size: 1.3rem; }
 .carr-pessoa { background: var(--fundo2); padding: 10px 14px; border-bottom: 1px solid var(--laranja-med); }
 .carr-pessoa label { font-size: .8rem; font-weight: 800; color: var(--texto2); display: block; margin-bottom: 4px; }
 .carr-pessoa-nome { font-size: .92rem; font-weight: 700; color: var(--texto); margin-bottom: 6px; }
@@ -187,7 +187,7 @@ body { font-family: 'Nunito', sans-serif; background: var(--fundo); color: var(-
   padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
   flex-shrink: 0;
 }
-.modal-cab h2 { color: #fff; font-family: 'Fredoka One'; font-size: 1.3rem; }
+.modal-cab h2 { color: #fff; font-family: 'Outfit'; font-size: 1.3rem; }
 .btn-fechar {
   border: none; background: rgba(255,255,255,.25); color: #fff;
   width: 30px; height: 30px; border-radius: 50%; font-size: 1rem; font-weight: 900;
@@ -534,7 +534,7 @@ tr.avista td { background: #F0F8FF; }
 </div>
 
 <!-- FORM PESSOA -->
-<div class="overlay" id="ov-form-pessoa">
+<div class="overlay" id="ov-form-pessoa" style="z-index:300">
   <div class="modal" style="max-width:480px">
     <div class="modal-cab" style="background:var(--roxo)">
       <h2 id="form-pessoa-titulo">Nova Pessoa</h2>
@@ -573,7 +573,7 @@ tr.avista td { background: #F0F8FF; }
 </div>
 
 <!-- FORM PRODUTO -->
-<div class="overlay" id="ov-form-prod">
+<div class="overlay" id="ov-form-prod" style="z-index:300">
   <div class="modal" style="max-width:480px">
     <div class="modal-cab" style="background:var(--laranja)">
       <h2 id="form-prod-titulo">Novo Produto</h2>
