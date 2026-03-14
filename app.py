@@ -318,6 +318,109 @@ def salvar_pessoa():
     db.session.commit()
     return jsonify({"ok": True, "id": p.id})
 
+@app.route("/api/pessoas/importar", methods=["POST"])
+def importar_pessoas():
+    """Importa alunos/funcionários da planilha TURMAS_RAIZ (aba MATRICULAS)."""
+    if "arquivo" not in request.files:
+        return jsonify({"erro": "Nenhum arquivo enviado"}), 400
+
+    arquivo = request.files["arquivo"]
+    try:
+        wb = openpyxl.load_workbook(arquivo, data_only=True)
+    except Exception:
+        return jsonify({"erro": "Arquivo inválido. Envie um .xlsx"}), 400
+
+    # Suporta tanto a planilha original (aba MATRICULAS) quanto planilha simples
+    if "MATRICULAS" in wb.sheetnames:
+        ws = wb["MATRICULAS"]
+        # Cabeçalho na linha 2, dados a partir da linha 3
+        # Col 4=NOME, 8=TURMA, 9=TURNO, 20=TELEFONE
+        def extrair(row):
+            nome     = row[3]
+            turma    = row[7]
+            turno    = row[8]
+            tel      = row[19]
+            if not nome or not str(nome).strip():
+                return None
+            tc = f"{turma} - {turno}" if turma and turno else (str(turma) if turma else "")
+            return {
+                "nome":        str(nome).strip(),
+                "tipo":        "Aluno",
+                "turma_cargo": tc.strip(),
+                "contato":     str(tel).strip() if tel else "",
+                "obs":         ""
+            }
+        linhas = list(ws.iter_rows(min_row=3, max_row=ws.max_row, values_only=True))
+    else:
+        # Planilha simples: Nome | Tipo | Turma/Cargo | Contato
+        ws = wb.active
+        def extrair(row):
+            if not row[0] or not str(row[0]).strip():
+                return None
+            return {
+                "nome":        str(row[0]).strip(),
+                "tipo":        str(row[1]).strip() if row[1] else "Aluno",
+                "turma_cargo": str(row[2]).strip() if row[2] else "",
+                "contato":     str(row[3]).strip() if row[3] else "",
+                "obs":         ""
+            }
+        linhas = list(ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=True))
+
+    inseridos = 0
+    ignorados = 0
+    nomes_existentes = {p.nome.lower() for p in Pessoa.query.all()}
+
+    for row in linhas:
+        dados = extrair(row)
+        if not dados:
+            continue
+        if dados["nome"].lower() in nomes_existentes:
+            ignorados += 1
+            continue
+        p = Pessoa(
+            nome        = dados["nome"],
+            tipo        = dados["tipo"],
+            turma_cargo = dados["turma_cargo"],
+            contato     = dados["contato"],
+            obs         = dados["obs"]
+        )
+        db.session.add(p)
+        nomes_existentes.add(dados["nome"].lower())
+        inseridos += 1
+
+    db.session.commit()
+    return jsonify({"ok": True, "inseridos": inseridos, "ignorados": ignorados})
+
+
+@app.route("/api/pessoas/modelo_excel")
+def modelo_excel():
+    """Gera planilha modelo para importação."""
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Alunos"
+    LA = "F47920"; RX = "7C4DFF"
+    cabecalhos = ["Nome Completo", "Tipo (Aluno/Funcionario)", "Turma / Cargo", "Contato (Telefone)"]
+    for c, h in enumerate(cabecalhos, 1):
+        cel = ws.cell(row=1, column=c, value=h)
+        cel.font = openpyxl.styles.Font(bold=True, color="FFFFFF", name="Calibri")
+        cel.fill = openpyxl.styles.PatternFill("solid", fgColor=RX)
+        cel.alignment = openpyxl.styles.Alignment(horizontal="center")
+    # Exemplos
+    exemplos = [
+        ["João da Silva", "Aluno", "3º ANO - MANHÃ", "21 99999-9999"],
+        ["Maria Souza",   "Aluno", "2º ANO - TARDE", "21 98888-8888"],
+        ["Ana Lima",      "Funcionario", "Coordenação", "21 97777-7777"],
+    ]
+    for i, ex in enumerate(exemplos, 2):
+        for c, v in enumerate(ex, 1):
+            ws.cell(row=i, column=c, value=v).font = openpyxl.styles.Font(name="Calibri")
+    for i, w in enumerate([30, 22, 22, 20], 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+    buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+    return send_file(buf, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                     as_attachment=True, download_name="modelo_importacao_alunos.xlsx")
+
+
 @app.route("/api/pessoas/excluir/<int:pid>", methods=["DELETE"])
 def excluir_pessoa(pid):
     p = Pessoa.query.get(pid)
