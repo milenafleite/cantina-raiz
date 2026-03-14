@@ -519,9 +519,16 @@ tr.avista td { background: #F0F8FF; }
             <tbody id="tb-contas"></tbody>
           </table>
         </div>
-        <div style="display:flex;gap:8px;margin-top:8px">
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
           <button class="btn btn-marrom btn-sm" onclick="editarPessoaSel()">✏ Editar</button>
           <button class="btn btn-vermelho btn-sm" onclick="excluirPessoaSel()">✕ Excluir</button>
+        </div>
+        <div style="border-top:1px solid var(--laranja-med);margin-top:12px;padding-top:10px">
+          <div style="font-size:.75rem;font-weight:800;color:var(--texto2);margin-bottom:6px">CADASTRO EM MASSA</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-roxo btn-sm" onclick="abrirImportacao()">📥 Importar Excel</button>
+            <a class="btn btn-cinza btn-sm" href="/api/pessoas/modelo_excel" target="_blank">📄 Baixar Modelo</a>
+          </div>
         </div>
       </div>
       <!-- Extrato -->
@@ -762,6 +769,48 @@ tr.avista td { background: #F0F8FF; }
     <div class="modal-rod">
       <button class="btn btn-verde btn-lg" onclick="confirmarCorrecao()">✅ Salvar Correção</button>
       <button class="btn btn-cinza" onclick="fecharModal('ov-corrigir')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORTAÇÃO EM MASSA -->
+<div class="overlay" id="ov-importacao" style="z-index:300">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-cab" style="background:var(--roxo)">
+      <h2>📥 Importar Alunos em Massa</h2>
+      <button class="btn-fechar" onclick="fecharModal('ov-importacao')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--fundo2);border-radius:10px;padding:12px;margin-bottom:14px;font-size:.85rem;color:var(--texto2)">
+        <b style="color:var(--roxo)">📋 Planilhas aceitas:</b><br>
+        • <b>Planilha da escola (TURMAS_RAIZ)</b> — importa direto da aba <i>MATRICULAS</i><br>
+        • <b>Planilha simples</b> — colunas: Nome | Tipo | Turma/Cargo | Contato<br>
+        <span style="font-size:.78rem">Alunos com nome já cadastrado serão ignorados automaticamente.</span>
+      </div>
+
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Selecione o arquivo Excel (.xlsx)</label>
+        <input type="file" id="imp-arquivo" accept=".xlsx"
+          style="border:1.5px solid var(--laranja-med);border-radius:8px;padding:8px;font-family:Nunito;font-size:.88rem;cursor:pointer;width:100%"
+          onchange="previewImportacao(this)">
+      </div>
+
+      <div id="imp-preview" style="display:none">
+        <div style="font-weight:800;font-size:.85rem;color:var(--texto2);margin-bottom:8px">PRÉ-VISUALIZAÇÃO (primeiros 5 alunos):</div>
+        <div class="tabela-wrap" style="max-height:200px;overflow-y:auto;margin-bottom:10px">
+          <table>
+            <thead><tr><th>Nome</th><th>Tipo</th><th>Turma/Cargo</th><th>Contato</th></tr></thead>
+            <tbody id="tb-imp-preview"></tbody>
+          </table>
+        </div>
+        <div id="imp-resumo" style="background:var(--fundo2);border-radius:8px;padding:10px;font-size:.88rem;font-weight:700;color:var(--texto2)"></div>
+      </div>
+
+      <div id="imp-resultado" style="display:none;margin-top:10px"></div>
+    </div>
+    <div class="modal-rod">
+      <button class="btn btn-roxo btn-lg" id="btn-confirmar-imp" onclick="confirmarImportacao()" style="display:none">✅ Importar Todos</button>
+      <button class="btn btn-cinza" onclick="fecharModal('ov-importacao')">Fechar</button>
     </div>
   </div>
 </div>
@@ -1540,6 +1589,100 @@ async function confirmarCorrecao() {
     abrirHistorico();
   }
   carregarProdutos();
+}
+
+// ── IMPORTAÇÃO EM MASSA ───────────────────────────────────────────────────────
+function abrirImportacao() {
+  document.getElementById("imp-arquivo").value = "";
+  document.getElementById("imp-preview").style.display = "none";
+  document.getElementById("imp-resultado").style.display = "none";
+  document.getElementById("btn-confirmar-imp").style.display = "none";
+  abrirModal("ov-importacao");
+}
+
+async function previewImportacao(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  // Leitura do Excel no browser com SheetJS
+  const data = await file.arrayBuffer();
+  const XLSX = await import("https://cdn.sheetjs.com/xlsx-0.20.1/package/xlsx.mjs");
+  const wb = XLSX.read(data);
+
+  let rows = [];
+  if (wb.SheetNames.includes("MATRICULAS")) {
+    const ws = wb.Sheets["MATRICULAS"];
+    const json = XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
+    // linha 0 = título, linha 1 = cabeçalho, dados a partir da linha 2
+    for (let i = 2; i < json.length; i++) {
+      const r = json[i];
+      const nome = r[3]; // col D
+      if (!nome || !String(nome).trim()) continue;
+      const turma = r[7] || "";
+      const turno = r[8] || "";
+      const tel   = r[19] || "";
+      rows.push({
+        nome:        String(nome).trim(),
+        tipo:        "Aluno",
+        turma_cargo: turma && turno ? `${turma} - ${turno}` : String(turma),
+        contato:     String(tel).trim()
+      });
+    }
+  } else {
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
+    for (let i = 1; i < json.length; i++) {
+      const r = json[i];
+      if (!r[0] || !String(r[0]).trim()) continue;
+      rows.push({
+        nome:        String(r[0]).trim(),
+        tipo:        r[1] || "Aluno",
+        turma_cargo: r[2] || "",
+        contato:     r[3] || ""
+      });
+    }
+  }
+
+  // Preview
+  const tb = document.getElementById("tb-imp-preview");
+  tb.innerHTML = rows.slice(0, 5).map(r =>
+    `<tr><td><b>${r.nome}</b></td><td>${r.tipo}</td><td>${r.turma_cargo}</td><td>${r.contato}</td></tr>`
+  ).join("");
+
+  document.getElementById("imp-resumo").innerHTML =
+    `📊 Total encontrado: <b>${rows.length} alunos/funcionários</b> para importar`;
+  document.getElementById("imp-preview").style.display = "block";
+  document.getElementById("btn-confirmar-imp").style.display = "inline-flex";
+  document.getElementById("imp-resultado").style.display = "none";
+}
+
+async function confirmarImportacao() {
+  const file = document.getElementById("imp-arquivo").files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append("arquivo", file);
+  document.getElementById("btn-confirmar-imp").textContent = "⏳ Importando...";
+  document.getElementById("btn-confirmar-imp").disabled = true;
+  const resp = await fetch("/api/pessoas/importar", {method:"POST", body: formData});
+  const r = await resp.json();
+  document.getElementById("btn-confirmar-imp").textContent = "✅ Importar Todos";
+  document.getElementById("btn-confirmar-imp").disabled = false;
+  if (r.erro) {
+    toast("Erro: " + r.erro, "vermelho"); return;
+  }
+  document.getElementById("imp-resultado").style.display = "block";
+  document.getElementById("imp-resultado").innerHTML =
+    `<div style="background:#E8F5E9;border-radius:8px;padding:12px;text-align:center">
+      <div style="font-size:1.5rem">✅</div>
+      <div style="font-weight:800;font-size:1rem;color:var(--verde)">Importação concluída!</div>
+      <div style="font-size:.88rem;margin-top:4px">
+        <b>${r.inseridos}</b> cadastrados &nbsp;|&nbsp;
+        <b>${r.ignorados}</b> ignorados (já existiam)
+      </div>
+    </div>`;
+  document.getElementById("btn-confirmar-imp").style.display = "none";
+  toast(`✅ ${r.inseridos} aluno(s) importado(s)!`, "verde");
+  carregarContas();
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
