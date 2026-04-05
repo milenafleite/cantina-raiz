@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cantina - Colégio Curso Raiz</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Outfit:wght@700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root {
   --laranja:      #F47920;
@@ -346,6 +347,7 @@ tr.avista td { background: #F0F8FF; }
   <nav class="topo-nav">
     <button class="btn-nav" style="background:var(--dinheiro)" onclick="abrirCaixa()">💰 Fechar Caixa</button>
     <button class="btn-nav" style="background:var(--pix)"      onclick="abrirHistCaixa()">📊 Hist. Caixa</button>
+    <button class="btn-nav" style="background:#8B6914"         onclick="abrirRecargas()">📱 Recargas Pix</button>
     <button class="btn-nav" style="background:var(--roxo)"     onclick="abrirContas()">👥 Contas</button>
     <button class="btn-nav" style="background:var(--ciano)"    onclick="abrirHistorico()">📋 Histórico</button>
     <button class="btn-nav" style="background:#8B6914"         onclick="abrirProdutos()">🛒 Produtos</button>
@@ -487,9 +489,18 @@ tr.avista td { background: #F0F8FF; }
       <button class="btn-fechar" onclick="fecharModal('ov-historico')">✕</button>
     </div>
     <div class="modal-body">
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+        <input type="date" id="hist-data-ini"
+          style="border:1.5px solid var(--laranja-med);border-radius:8px;padding:7px 10px;font-family:Nunito;font-size:.85rem">
+        <span style="font-size:.85rem;color:var(--texto2);font-weight:700">até</span>
+        <input type="date" id="hist-data-fim"
+          style="border:1.5px solid var(--laranja-med);border-radius:8px;padding:7px 10px;font-family:Nunito;font-size:.85rem">
+        <button class="btn btn-ciano btn-sm" onclick="abrirHistorico()">🔍 Filtrar</button>
+        <button class="btn btn-cinza btn-sm" onclick="limparFiltroHistorico()">✕ Limpar</button>
+      </div>
       <div class="tabela-wrap">
         <table>
-          <thead><tr><th>Data/Hora</th><th>Pessoa</th><th>Tipo</th><th>Itens</th><th>Total</th><th>Pagamento</th><th>Status</th><th>Ação</th></tr></thead>
+          <thead><tr><th>Data/Hora</th><th>Pessoa</th><th>Itens</th><th>Total</th><th>Pagamento</th><th>Status</th><th>Ações</th></tr></thead>
           <tbody id="tb-historico"></tbody>
         </table>
       </div>
@@ -561,6 +572,10 @@ tr.avista td { background: #F0F8FF; }
         <div class="form-group">
           <label>Turma / Cargo</label>
           <input type="text" id="fp-turma">
+        </div>
+        <div class="form-group">
+          <label>Matrícula <span style="font-size:.75rem;color:var(--ciano)">(ex: MAT97431770123316)</span></label>
+          <input type="text" id="fp-matricula" placeholder="MAT..." style="font-family:monospace">
         </div>
         <div class="form-group">
           <label>Contato</label>
@@ -636,8 +651,19 @@ tr.avista td { background: #F0F8FF; }
       <button class="btn-fechar" onclick="fecharModal('ov-produtos')">✕</button>
     </div>
     <div class="modal-body">
-      <div style="margin-bottom:10px">
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-verde" onclick="abrirFormProduto(null)">+ Novo Produto</button>
+        <input type="text" id="busca-produtos" placeholder="🔍 Buscar produto..." oninput="filtrarTabelaProdutos()"
+          style="flex:1;min-width:160px;border:1.5px solid var(--laranja-med);border-radius:8px;padding:7px 12px;font-family:Nunito;font-size:.9rem">
+        <select id="cat-produtos" onchange="filtrarTabelaProdutos()"
+          style="border:1.5px solid var(--laranja-med);border-radius:8px;padding:7px 12px;font-family:Nunito;font-size:.88rem">
+          <option value="Todos">Todas categorias</option>
+          <option value="Salgado">🥧 Salgado</option>
+          <option value="Biscoito">🍪 Biscoito</option>
+          <option value="Doce">🍬 Doce</option>
+          <option value="Bebida">🥤 Bebida</option>
+        </select>
+        <span id="lbl-count-prods" style="font-size:.8rem;font-weight:700;color:var(--texto2)"></span>
       </div>
       <div class="tabela-wrap">
         <table>
@@ -811,6 +837,61 @@ tr.avista td { background: #F0F8FF; }
     <div class="modal-rod">
       <button class="btn btn-roxo btn-lg" id="btn-confirmar-imp" onclick="confirmarImportacao()" style="display:none">✅ Importar Todos</button>
       <button class="btn btn-cinza" onclick="fecharModal('ov-importacao')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL QR CODE DO ALUNO -->
+<div class="overlay" id="ov-qr-aluno" style="z-index:300">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-cab" style="background:#8B6914">
+      <h2>📱 QR Code do Aluno</h2>
+      <button class="btn-fechar" onclick="fecharModal('ov-qr-aluno')">✕</button>
+    </div>
+    <div class="modal-body" style="text-align:center">
+      <div id="qr-aluno-nome" style="font-weight:800;font-size:1rem;margin-bottom:4px"></div>
+      <div id="qr-aluno-turma" style="font-size:.82rem;color:var(--texto2);margin-bottom:16px"></div>
+      <div id="qr-aluno-saldo" style="font-family:'Fredoka One';font-size:1.5rem;color:var(--laranja);margin-bottom:16px"></div>
+      <div id="qrcode-aluno" style="display:inline-block;padding:12px;background:#fff;border-radius:12px;border:2px solid var(--laranja-med);margin-bottom:12px"></div>
+      <div style="margin-bottom:12px">
+        <a id="qr-link" href="#" target="_blank" class="btn btn-laranja btn-sm">🔗 Abrir página do aluno</a>
+      </div>
+      <div style="font-size:.78rem;color:#aaa">O pai escaneia este QR Code para ver o saldo e solicitar recarga</div>
+      <div style="margin-top:16px;border-top:1px solid var(--laranja-med);padding-top:12px">
+        <div style="font-size:.82rem;font-weight:800;color:var(--texto2);margin-bottom:8px">Adicionar saldo manualmente:</div>
+        <div style="display:flex;gap:8px">
+          <input type="number" id="qr-add-valor" placeholder="R$ Valor" step="0.50" min="1"
+            style="flex:1;border:1.5px solid var(--laranja-med);border-radius:8px;padding:7px 10px;font-family:Nunito;font-size:.9rem">
+          <button class="btn btn-verde btn-sm" onclick="adicionarSaldoManual()">+ Adicionar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RECARGAS PIX PENDENTES -->
+<div class="overlay" id="ov-recargas">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-cab" style="background:#8B6914">
+      <h2>📱 Recargas Pix Pendentes</h2>
+      <button class="btn-fechar" onclick="fecharModal('ov-recargas')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:.85rem;color:var(--texto2);margin-bottom:12px">
+        Recargas solicitadas pelos pais aguardando confirmação. Verifique o Pix recebido e confirme.
+      </div>
+      <div class="tabela-wrap">
+        <table>
+          <thead><tr><th>Aluno</th><th>Turma</th><th>Valor</th><th>Data</th><th>Ações</th></tr></thead>
+          <tbody id="tb-recargas"></tbody>
+        </table>
+      </div>
+      <div id="recargas-vazio" style="display:none;text-align:center;padding:30px;color:#bbb">
+        ✅ Nenhuma recarga pendente!
+      </div>
+    </div>
+    <div class="modal-rod">
+      <button class="btn btn-ciano" onclick="carregarRecargas()">🔄 Atualizar</button>
     </div>
   </div>
 </div>
@@ -1100,26 +1181,90 @@ function confirmarTroca() {
 
 // ── Histórico de Vendas ───────────────────────────────────────────────────────
 async function abrirHistorico() {
-  const vendas = await api("/api/vendas/historico");
+  const ini = document.getElementById("hist-data-ini")?.value || "";
+  const fim = document.getElementById("hist-data-fim")?.value || "";
+  const params = new URLSearchParams();
+  if (ini) params.append("ini", ini);
+  if (fim) params.append("fim", fim);
+
+  const vendas = await api("/api/vendas/historico?" + params.toString());
   const tb = document.getElementById("tb-historico");
   tb.innerHTML = "";
   let total = 0, devedor = 0;
+
+  if (!vendas.length) {
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#bbb;padding:20px">Nenhuma venda encontrada no período.</td></tr>';
+    document.getElementById("rod-historico").innerHTML = "";
+    abrirModal("ov-historico");
+    return;
+  }
+
   vendas.forEach(v => {
     total += v.total;
     if (!v.pago && v.pessoa_id) devedor += v.total;
     const itens = v.itens.map(i => `${i.nome} ×${i.qtd}`).join(", ");
     const tr = document.createElement("tr");
     tr.className = v.pago ? (v.pessoa_id ? "pago" : "avista") : "pendente";
-    tr.innerHTML = `<td>${v.data}</td><td>${v.pessoa_nome||"À vista"}</td>
-      <td>—</td><td style="font-size:.8rem">${itens}</td>
-      <td><b>${fmt(v.total)}</b></td><td>${v.forma_pagamento}</td>
+    tr.innerHTML = `
+      <td style="font-size:.8rem">${v.data}</td>
+      <td>${v.pessoa_nome||"À vista"}</td>
+      <td style="font-size:.78rem">${itens}</td>
+      <td><b>${fmt(v.total)}</b></td>
+      <td>
+        <span class="badge" style="background:var(--ciano);cursor:pointer" title="Clique para mudar"
+          onclick="mudarPagamento(${v.id},'${v.forma_pagamento}')">
+          ${v.forma_pagamento} ✏
+        </span>
+      </td>
       <td><span class="badge badge-${v.pago?'pago':'pendente'}">${v.pago?"Pago":"Pendente"}</span></td>
-      <td><button class="btn btn-sm" style="background:#8B6914;color:#fff" onclick="abrirCorrigir(${v.id})">✏ Corrigir</button></td>`;
+      <td style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="btn btn-sm" style="background:#8B6914;color:#fff" onclick="abrirCorrigir(${v.id})">✏ Corrigir</button>
+        <button class="btn btn-vermelho btn-sm" onclick="excluirVenda(${v.id})">🗑 Apagar</button>
+      </td>`;
     tb.appendChild(tr);
   });
+
   document.getElementById("rod-historico").innerHTML =
-    `<span style="font-weight:800;color:var(--ciano)">Total arrecadado: ${fmt(total)} &nbsp;|&nbsp; Saldo devedor: ${fmt(devedor)}</span>`;
+    `<span style="font-weight:800;color:var(--ciano)">
+      ${vendas.length} venda(s) &nbsp;|&nbsp;
+      Total: ${fmt(total)} &nbsp;|&nbsp;
+      Devedor: ${fmt(devedor)}
+    </span>`;
   abrirModal("ov-historico");
+}
+
+function limparFiltroHistorico() {
+  document.getElementById("hist-data-ini").value = "";
+  document.getElementById("hist-data-fim").value = "";
+  abrirHistorico();
+}
+
+async function mudarPagamento(vid, formaAtual) {
+  const formas = ["Dinheiro", "Pix", "Cartão", "A Pagar", "Saldo"];
+  const lista = formas.map((f, i) => `${i+1}. ${f}${f === formaAtual ? " ✓ (atual)" : ""}`).join("\n");
+  const escolha = prompt(`Escolha a nova forma de pagamento:\n\n${lista}\n\nDigite o número:`);
+  if (!escolha) return;
+  const idx = parseInt(escolha) - 1;
+  if (idx < 0 || idx >= formas.length) { toast("Opção inválida!", "vermelho"); return; }
+  const novaForma = formas[idx];
+  if (novaForma === formaAtual) { toast("Forma de pagamento não alterada.", "laranja"); return; }
+
+  const r = await api(`/api/vendas/${vid}/mudar_pagamento`, {
+    method: "POST",
+    body: { forma: novaForma }
+  });
+  if (r.erro) { toast("Erro: " + r.erro, "vermelho"); return; }
+  toast(`✅ Forma de pagamento alterada para ${novaForma}!`, "verde");
+  abrirHistorico();
+}
+
+async function excluirVenda(vid) {
+  if (!confirm("⚠ Tem certeza que deseja APAGAR esta venda?\n\nO estoque dos produtos será devolvido automaticamente.")) return;
+  const r = await api(`/api/vendas/${vid}/excluir`, { method: "DELETE", body: {} });
+  if (r.erro) { toast("Erro: " + r.erro, "vermelho"); return; }
+  toast("✅ Venda apagada e estoque devolvido!", "verde");
+  abrirHistorico();
+  carregarProdutos();
 }
 
 // ── Contas ────────────────────────────────────────────────────────────────────
@@ -1166,6 +1311,7 @@ async function carregarExtrato(pid) {
       <button class="btn btn-verde btn-sm" onclick="marcarPagoSel(${p.id})">✓ Marcar Pago</button>
       <button class="btn btn-azul btn-sm"  onclick="quitarTudo(${p.id})">Quitar Tudo</button>
       <a class="btn btn-ciano btn-sm" href="/api/export/extrato/${p.id}" target="_blank">📥 Excel</a>
+      <button class="btn btn-sm" style="background:#8B6914;color:#fff" onclick="verQRAluno(${p.id},'${p.nome.replace(/'/g,'')}')">📱 QR Code</button>
     </div>
     <div class="tabela-wrap" style="max-height:300px;overflow-y:auto">
       <table>
@@ -1202,16 +1348,16 @@ async function quitarTudo(pid) {
   carregarExtrato(pid); carregarContas();
 }
 
-let _pessoaEditando = null;
 function abrirFormPessoa(p) {
   _pessoaEditando = p;
   document.getElementById("form-pessoa-titulo").textContent = p ? "Editar Pessoa" : "Nova Pessoa";
-  document.getElementById("fp-id").value = p?.id || "";
-  document.getElementById("fp-nome").value = p?.nome || "";
-  document.getElementById("fp-tipo").value = p?.tipo || "Aluno";
-  document.getElementById("fp-turma").value = p?.turma_cargo || "";
-  document.getElementById("fp-contato").value = p?.contato || "";
-  document.getElementById("fp-obs").value = p?.obs || "";
+  document.getElementById("fp-id").value       = p?.id || "";
+  document.getElementById("fp-nome").value     = p?.nome || "";
+  document.getElementById("fp-tipo").value     = p?.tipo || "Aluno";
+  document.getElementById("fp-turma").value    = p?.turma_cargo || "";
+  document.getElementById("fp-matricula").value= p?.matricula || "";
+  document.getElementById("fp-contato").value  = p?.contato || "";
+  document.getElementById("fp-obs").value      = p?.obs || "";
   abrirModal("ov-form-pessoa");
 }
 async function salvarPessoa() {
@@ -1221,8 +1367,9 @@ async function salvarPessoa() {
     id: document.getElementById("fp-id").value || null,
     nome, tipo: document.getElementById("fp-tipo").value,
     turma_cargo: document.getElementById("fp-turma").value,
-    contato: document.getElementById("fp-contato").value,
-    obs: document.getElementById("fp-obs").value,
+    matricula:   document.getElementById("fp-matricula").value.trim().toUpperCase() || null,
+    contato:     document.getElementById("fp-contato").value,
+    obs:         document.getElementById("fp-obs").value,
   }});
   if (r.erro) { toast(r.erro, "vermelho"); return; }
   toast("✓ Pessoa salva!", "verde");
@@ -1242,22 +1389,50 @@ async function excluirPessoaSel() {
 }
 
 // ── Produtos (gerenciar) ──────────────────────────────────────────────────────
+let _todosProds = [];
+
 async function abrirProdutos() {
-  const prods = await api("/api/produtos/todos");
+  _todosProds = await api("/api/produtos/todos");
+  document.getElementById("busca-produtos").value = "";
+  document.getElementById("cat-produtos").value = "Todos";
+  renderTabelaProdutos(_todosProds);
+  abrirModal("ov-produtos");
+}
+
+function filtrarTabelaProdutos() {
+  const busca = document.getElementById("busca-produtos").value.toLowerCase();
+  const cat   = document.getElementById("cat-produtos").value;
+  const filtrados = _todosProds.filter(p => {
+    const matchCat  = cat === "Todos" || p.categoria === cat;
+    const matchNome = !busca || p.nome.toLowerCase().includes(busca);
+    return matchCat && matchNome;
+  });
+  renderTabelaProdutos(filtrados);
+}
+
+function renderTabelaProdutos(prods) {
   const tb = document.getElementById("tb-produtos");
   tb.innerHTML = "";
+  const lbl = document.getElementById("lbl-count-prods");
+  lbl.textContent = prods.length === _todosProds.length
+    ? `${prods.length} produto(s)`
+    : `${prods.length} de ${_todosProds.length} produto(s)`;
+
+  if (!prods.length) {
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#bbb;padding:20px">Nenhum produto encontrado</td></tr>';
+    return;
+  }
   prods.forEach(p => {
     const tr = document.createElement("tr");
     tr.innerHTML = `<td>${p.id}</td><td><b>${p.nome}</b></td><td>${p.categoria}</td>
       <td>${fmt(p.preco)}</td>
-      <td style="color:${p.estoque>5?'var(--verde)':'#CC6600'}">${p.estoque}</td>
+      <td style="color:${p.estoque>5?'var(--verde)':'#CC6600'};font-weight:700">${p.estoque}</td>
       <td style="display:flex;gap:6px">
         <button class="btn btn-marrom btn-sm" onclick='abrirFormProduto(${JSON.stringify(p)})'>✏</button>
         <button class="btn btn-vermelho btn-sm" onclick="excluirProd(${p.id})">✕</button>
       </td>`;
     tb.appendChild(tr);
   });
-  abrirModal("ov-produtos");
 }
 function abrirFormProduto(p) {
   document.getElementById("form-prod-titulo").textContent = p ? "Editar Produto" : "Novo Produto";
@@ -1683,6 +1858,121 @@ async function confirmarImportacao() {
   document.getElementById("btn-confirmar-imp").style.display = "none";
   toast(`✅ ${r.inseridos} aluno(s) importado(s)!`, "verde");
   carregarContas();
+}
+
+// ── QR CODE DO ALUNO ─────────────────────────────────────────────────────────
+let _qrAlunoId = null;
+let _qrInstance = null;
+
+async function verQRAluno(pid, nome) {
+  _qrAlunoId = pid;
+  const r = await api(`/api/saldo/${pid}/info`);
+  if (r.erro) { toast("Erro ao carregar saldo", "vermelho"); return; }
+
+  document.getElementById("qr-aluno-nome").textContent  = nome;
+  document.getElementById("qr-aluno-saldo").textContent = `Saldo: R$ ${r.saldo.toFixed(2).replace(".",",")}`;
+
+  const cont = document.getElementById("qrcode-aluno");
+  cont.innerHTML = "";
+
+  if (!r.matricula) {
+    cont.innerHTML = `<div style="padding:20px;color:#CC3300;font-size:.85rem;text-align:center">
+      ⚠ Este aluno não tem matrícula cadastrada.<br>
+      <b>Cadastre a matrícula</b> no campo "Turma / Cargo" ou edite o aluno para adicionar a matrícula.
+    </div>`;
+    document.getElementById("qr-link").removeAttribute("href");
+    document.getElementById("qr-link").style.display = "none";
+  } else {
+    const url = r.url;
+    document.getElementById("qr-link").href = url;
+    document.getElementById("qr-link").style.display = "inline-flex";
+    // Gerar QR Code com a matrícula (que já está no QR Code físico do aluno)
+    if (typeof QRCode !== "undefined") {
+      new QRCode(cont, { text: r.matricula, width: 180, height: 180,
+                         colorDark: "#2C1800", colorLight: "#ffffff" });
+    } else {
+      const img = document.createElement("img");
+      img.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(r.matricula)}`;
+      img.style.borderRadius = "8px";
+      cont.appendChild(img);
+    }
+    const infoMat = document.createElement("div");
+    infoMat.style = "font-size:.75rem;color:#888;margin-top:6px;text-align:center";
+    infoMat.textContent = `Matrícula: ${r.matricula}`;
+    cont.appendChild(infoMat);
+  }
+  document.getElementById("qr-add-valor").value = "";
+  abrirModal("ov-qr-aluno");
+}
+
+async function adicionarSaldoManual() {
+  const valor = parseFloat(document.getElementById("qr-add-valor").value);
+  if (!valor || valor <= 0) { toast("Informe um valor!", "vermelho"); return; }
+  const r = await api(`/api/saldo/${_qrAlunoId}/adicionar`, {
+    method: "POST", body: { valor, obs: "Adicionado pelo funcionário" }
+  });
+  if (r.erro) { toast(r.erro, "vermelho"); return; }
+  toast(`✅ R$ ${valor.toFixed(2).replace(".",",")} adicionado!`, "verde");
+  document.getElementById("qr-aluno-saldo").textContent =
+    `Saldo: R$ ${r.novo_saldo.toFixed(2).replace(".",",")}`;
+  document.getElementById("qr-add-valor").value = "";
+}
+
+// ── RECARGAS PIX ──────────────────────────────────────────────────────────────
+async function abrirRecargas() {
+  await carregarRecargas();
+  abrirModal("ov-recargas");
+  // Atualizar a cada 15s enquanto aberto
+  window._recargasInterval = setInterval(() => {
+    if (document.getElementById("ov-recargas").classList.contains("aberto")) {
+      carregarRecargas();
+    } else {
+      clearInterval(window._recargasInterval);
+    }
+  }, 15000);
+}
+
+async function carregarRecargas() {
+  const recargas = await api("/api/saldo/recargas/pendentes");
+  const tb = document.getElementById("tb-recargas");
+  const vazio = document.getElementById("recargas-vazio");
+  tb.innerHTML = "";
+  if (!recargas.length) {
+    tb.closest(".tabela-wrap").style.display = "none";
+    vazio.style.display = "block";
+    return;
+  }
+  tb.closest(".tabela-wrap").style.display = "";
+  vazio.style.display = "none";
+  recargas.forEach(r => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><b>${r.nome}</b></td>
+      <td style="font-size:.8rem">${r.turma}</td>
+      <td><b style="color:var(--verde);font-size:1rem">R$ ${r.valor.toFixed(2).replace(".",",")}</b></td>
+      <td style="font-size:.8rem">${r.data}</td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-verde btn-sm" onclick="confirmarRecarga(${r.id},this)">✓ Confirmar</button>
+        <button class="btn btn-vermelho btn-sm" onclick="rejeitarRecarga(${r.id},this)">✕ Rejeitar</button>
+      </td>`;
+    tb.appendChild(tr);
+  });
+}
+
+async function confirmarRecarga(rid, btn) {
+  btn.disabled = true; btn.textContent = "...";
+  const r = await api(`/api/saldo/recarga/${rid}/confirmar`, { method: "POST", body: {} });
+  if (r.erro) { toast(r.erro, "vermelho"); btn.disabled = false; btn.textContent = "✓ Confirmar"; return; }
+  toast(`✅ Recarga confirmada! Novo saldo: R$ ${r.novo_saldo.toFixed(2).replace(".",",")}`, "verde");
+  carregarRecargas();
+}
+
+async function rejeitarRecarga(rid, btn) {
+  if (!confirm("Rejeitar esta recarga?")) return;
+  btn.disabled = true;
+  await api(`/api/saldo/recarga/${rid}/rejeitar`, { method: "POST", body: {} });
+  toast("Recarga rejeitada.", "laranja");
+  carregarRecargas();
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
