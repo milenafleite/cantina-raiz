@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cantina – Autoatendimento</title>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
 <style>
   :root {
     --laranja: #F47920;
@@ -54,6 +55,45 @@
   }
   .btn-entrar:hover { background: #FFF0E0; }
   .ou { color: rgba(255,255,255,.7); font-size: .85rem; margin: 14px 0; }
+
+  /* ── SCANNER ── */
+  .btn-scanner {
+    width: 100%; border: 2px solid rgba(255,255,255,.5); border-radius: 12px; padding: 14px;
+    background: rgba(255,255,255,.15); color: #fff; font-family: 'Nunito';
+    font-weight: 800; font-size: 1rem; cursor: pointer; transition: all .2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-scanner:hover { background: rgba(255,255,255,.25); }
+  #scanner-overlay {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,.92); flex-direction: column;
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  #scanner-overlay.ativo { display: flex; }
+  #scanner-overlay h2 { color: #fff; font-family:'Baloo 2'; font-size:1.4rem; margin-bottom:16px; text-align:center; }
+  #scanner-video-wrap {
+    position: relative; border-radius: 16px; overflow: hidden;
+    border: 3px solid var(--laranja); max-width: 340px; width: 100%;
+  }
+  #scanner-video { width: 100%; display: block; border-radius: 13px; }
+  .scanner-mira {
+    position: absolute; inset: 0; pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .scanner-mira::before {
+    content: ''; width: 60%; aspect-ratio: 1;
+    border: 3px solid rgba(244,121,32,.8); border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,.35);
+    animation: pulse-border 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse-border { 0%,100%{border-color:rgba(244,121,32,.8)} 50%{border-color:rgba(244,121,32,1)} }
+  #scanner-status { color: #FFE0B2; font-size:.9rem; margin-top:12px; font-weight:700; text-align:center; }
+  .btn-fechar-scanner {
+    margin-top:18px; border:2px solid rgba(255,255,255,.4); background:transparent;
+    color:#fff; border-radius:12px; padding:10px 28px;
+    font-family:'Nunito'; font-weight:800; font-size:1rem; cursor:pointer;
+  }
+  #scanner-canvas { display: none; }
 
   /* ── TELA DO CARDÁPIO ── */
   #tela-cardapio { display: none; min-height: 100vh; }
@@ -224,17 +264,34 @@
 </head>
 <body>
 
+<!-- ══ SCANNER OVERLAY ══ -->
+<div id="scanner-overlay">
+  <h2>📷 Aponte para o QR Code do aluno</h2>
+  <div id="scanner-video-wrap">
+    <video id="scanner-video" autoplay playsinline muted></video>
+    <div class="scanner-mira"></div>
+  </div>
+  <canvas id="scanner-canvas"></canvas>
+  <div id="scanner-status">Procurando QR Code...</div>
+  <button class="btn-fechar-scanner" onclick="fecharScanner()">✕ Cancelar</button>
+</div>
+
 <!-- ══ TELA 1: SCAN ══ -->
 <div id="tela-scan">
   <div class="scan-box">
     <div class="scan-icon">📷</div>
     <h2>Identifique-se para pedir</h2>
     <p style="color:rgba(255,255,255,.8);font-size:.9rem;margin-bottom:16px">
-      Abra o app do seu colégio ou peça à cantina o seu QR Code
+      Escaneie o QR Code ou digite a matrícula
     </p>
+    <button class="btn-scanner" onclick="abrirScanner()">
+      <span style="font-size:1.3rem">📷</span> Escanear QR Code com a câmera
+    </button>
+    <div class="ou">— ou digite manualmente —</div>
     <input type="text" class="input-token" id="input-token"
       placeholder="Cole ou digite o código aqui"
-      oninput="this.value = this.value.replace(/[^a-zA-Z0-9]/g,'')">
+      oninput="this.value = this.value.replace(/[^a-zA-Z0-9]/g,'')"
+      onkeydown="if(event.key==='Enter') entrarComToken()">
     <button class="btn-entrar" onclick="entrarComToken()">Entrar na Cantina ▶</button>
   </div>
 </div>
@@ -329,8 +386,58 @@ async function entrarComToken() {
   await carregarAluno(token.trim().toUpperCase());
 }
 
+// ── Scanner QR Code ───────────────────────────────────────────────────────────
+let scannerStream = null;
+let scannerLoop   = null;
+
+async function abrirScanner() {
+  try {
+    scannerStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    const video = document.getElementById("scanner-video");
+    video.srcObject = scannerStream;
+    document.getElementById("scanner-overlay").classList.add("ativo");
+    document.getElementById("scanner-status").textContent = "Procurando QR Code...";
+    video.onloadedmetadata = () => { video.play(); iniciarLoopScan(); };
+  } catch(e) {
+    toast("Câmera não disponível. Use a digitação.", "vermelho");
+  }
+}
+
+function fecharScanner() {
+  if (scannerLoop)   { cancelAnimationFrame(scannerLoop); scannerLoop = null; }
+  if (scannerStream) { scannerStream.getTracks().forEach(t => t.stop()); scannerStream = null; }
+  document.getElementById("scanner-overlay").classList.remove("ativo");
+}
+
+function iniciarLoopScan() {
+  const video  = document.getElementById("scanner-video");
+  const canvas = document.getElementById("scanner-canvas");
+  const ctx    = canvas.getContext("2d");
+
+  function tick() {
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
+      if (code && code.data) {
+        const mat = code.data.trim().toUpperCase();
+        document.getElementById("scanner-status").textContent = "✅ QR Code lido!";
+        fecharScanner();
+        carregarAluno(mat);
+        return;
+      }
+    }
+    scannerLoop = requestAnimationFrame(tick);
+  }
+  scannerLoop = requestAnimationFrame(tick);
+}
+
 async function carregarAluno(matricula) {
-  const r = await fetch(`/api/saldo/aluno/${token}`);
+  const r = await fetch(`/api/saldo/aluno/${matricula}`);
   const d = await r.json();
   if (d.erro) { toast("QR Code inválido. Tente novamente.", "vermelho"); return; }
   matriculaAtual = matricula;
