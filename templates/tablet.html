@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cantina – Autoatendimento</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --laranja: #F47920;
+    --laranja2:#e06510;
+    --verde:   #5BAD6F;
+    --ciano:   #3BBFCE;
+    --fundo:   #FFF8F0;
+    --texto:   #2C1800;
+    --card:    #FFFFFF;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito', sans-serif; background: var(--fundo); min-height: 100vh; overflow-x: hidden; }
+
+  /* ── TELA DE SCAN ── */
+  #tela-scan {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 30px 20px;
+    background: linear-gradient(160deg, #F47920 0%, #e06510 45%, #FF9A44 100%);
+  }
+  #tela-scan img.logo { height: 90px; margin-bottom: 20px; border-radius: 12px; }
+  #tela-scan h1 {
+    font-family: 'Baloo 2'; font-size: 2.2rem; color: #fff;
+    font-weight: 900; text-align: center; margin-bottom: 6px;
+  }
+  #tela-scan p { color: rgba(255,255,255,.85); font-size: 1rem; text-align: center; margin-bottom: 32px; }
+  .scan-box {
+    background: rgba(255,255,255,.15); backdrop-filter: blur(8px);
+    border: 2px solid rgba(255,255,255,.4);
+    border-radius: 20px; padding: 28px 32px; width: 100%; max-width: 420px;
+    text-align: center;
+  }
+  .scan-icon { font-size: 4rem; margin-bottom: 12px; }
+  .scan-box h2 { font-family:'Baloo 2'; font-size:1.3rem; color:#fff; margin-bottom:16px; }
+  .input-token {
+    width: 100%; padding: 14px 16px; border-radius: 12px;
+    border: none; font-family: 'Nunito'; font-size: 1rem;
+    text-align: center; outline: none; margin-bottom: 12px;
+    color: var(--texto);
+  }
+  .btn-entrar {
+    width: 100%; border: none; border-radius: 12px; padding: 14px;
+    background: #fff; color: var(--laranja); font-family: 'Nunito';
+    font-weight: 800; font-size: 1.1rem; cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-entrar:hover { background: #FFF0E0; }
+  .ou { color: rgba(255,255,255,.7); font-size: .85rem; margin: 14px 0; }
+
+  /* ── TELA DO CARDÁPIO ── */
+  #tela-cardapio { display: none; min-height: 100vh; }
+
+  .top-aluno {
+    background: var(--laranja);
+    padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 3px 12px rgba(0,0,0,.2);
+    position: sticky; top: 0; z-index: 20;
+  }
+  .top-aluno .info { display: flex; align-items: center; gap: 10px; }
+  .top-aluno .avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: rgba(255,255,255,.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; color: #fff; font-weight: 800;
+  }
+  .top-aluno .nome-aluno { font-weight: 800; font-size: 1rem; color: #fff; }
+  .top-aluno .turma-aluno { font-size: .78rem; color: #FFE0B2; }
+  .saldo-top {
+    background: rgba(255,255,255,.2); border-radius: 12px;
+    padding: 6px 14px; text-align: right;
+  }
+  .saldo-top .lbl { font-size: .72rem; color: #FFE0B2; font-weight: 700; }
+  .saldo-top .val { font-family: 'Baloo 2'; font-size: 1.3rem; color: #fff; font-weight: 900; line-height: 1.1; }
+
+  /* FILTROS */
+  .filtros {
+    background: #fff; border-bottom: 2px solid #FFE0C0;
+    padding: 10px 16px; display: flex; gap: 8px; flex-wrap: wrap;
+    justify-content: center;
+  }
+  .btn-cat {
+    border: 2px solid #FFD4A0; background: #fff; border-radius: 20px;
+    padding: 6px 16px; font-family: 'Nunito'; font-weight: 700; font-size: .88rem;
+    cursor: pointer; color: #7a5030; transition: all .2s;
+  }
+  .btn-cat.ativo { background: var(--laranja); border-color: var(--laranja); color: #fff; }
+
+  /* GRADE */
+  .grade-wrap { padding: 16px; }
+  .grade {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    gap: 14px; max-width: 900px; margin: 0 auto;
+  }
+  .card-prod {
+    background: var(--card); border-radius: 16px;
+    box-shadow: 0 3px 14px rgba(244,121,32,.12);
+    border: 1.5px solid #FFE5C8; overflow: hidden;
+    transition: transform .18s, box-shadow .18s; cursor: pointer;
+  }
+  .card-prod:active { transform: scale(.96); }
+  .card-prod.no-estoque { opacity: .45; pointer-events: none; }
+  .card-foto {
+    height: 110px; background: linear-gradient(135deg,#FFF0E0,#FFD4A0);
+    display: flex; align-items: center; justify-content: center; font-size: 2.8rem;
+    overflow: hidden;
+  }
+  .card-foto img { width:100%; height:100%; object-fit:cover; }
+  .card-body { padding: 10px 12px 12px; }
+  .card-cat { font-size:.68rem; font-weight:800; padding:2px 8px; border-radius:8px; display:inline-block; margin-bottom:4px; }
+  .card-nome { font-weight:800; font-size:.92rem; margin-bottom:4px; line-height:1.2; }
+  .card-preco { font-family:'Baloo 2'; font-size:1.25rem; font-weight:800; color:var(--laranja); }
+  .card-est { font-size:.72rem; color:#aaa; margin-top:2px; }
+
+  /* CARRINHO */
+  .carr-btn {
+    position: fixed; bottom: 20px; right: 20px; z-index: 30;
+    background: var(--verde); color: #fff; border: none; border-radius: 50px;
+    padding: 14px 22px; font-family: 'Nunito'; font-weight: 800; font-size: 1rem;
+    cursor: pointer; box-shadow: 0 6px 20px rgba(91,173,111,.4);
+    display: none; align-items: center; gap: 8px;
+    transition: transform .2s;
+  }
+  .carr-btn:active { transform: scale(.95); }
+  .carr-badge {
+    background: #fff; color: var(--verde); border-radius: 50%;
+    width: 24px; height: 24px; display: flex; align-items: center;
+    justify-content: center; font-size: .8rem; font-weight: 900;
+  }
+
+  /* TELA DO CARRINHO */
+  #tela-carrinho {
+    display: none; position: fixed; inset: 0; z-index: 50;
+    background: rgba(0,0,0,.5); align-items: flex-end; justify-content: center;
+  }
+  .carr-modal {
+    background: #fff; border-radius: 20px 20px 0 0;
+    width: 100%; max-width: 520px; max-height: 85vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 -8px 40px rgba(0,0,0,.2);
+  }
+  .carr-cab {
+    background: var(--verde); padding: 16px 20px;
+    border-radius: 20px 20px 0 0;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .carr-cab h2 { font-family:'Baloo 2'; font-size:1.3rem; color:#fff; }
+  .btn-fechar-carr {
+    border:none; background:rgba(255,255,255,.25); color:#fff;
+    width:30px; height:30px; border-radius:50%; font-size:1rem; cursor:pointer;
+  }
+  .carr-lista { flex:1; overflow-y:auto; padding:12px 16px; }
+  .carr-item {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 0; border-bottom:1px solid #f0f0f0;
+  }
+  .carr-item-nome { font-weight:800; font-size:.95rem; }
+  .carr-item-sub  { font-size:.85rem; color:#888; margin-top:2px; }
+  .carr-qtds { display:flex; align-items:center; gap:8px; }
+  .btn-qtd {
+    border:none; background:var(--laranja); color:#fff;
+    width:28px; height:28px; border-radius:8px; font-size:1rem;
+    font-weight:900; cursor:pointer;
+  }
+  .carr-rod {
+    padding:16px; background:var(--fundo); border-top:2px solid #FFE5C8;
+  }
+  .carr-total { font-family:'Baloo 2'; font-size:1.4rem; font-weight:800;
+                color:var(--laranja); text-align:center; margin-bottom:10px; }
+  .saldo-insuf { color:#CC3300; font-size:.85rem; text-align:center;
+                 margin-bottom:8px; font-weight:700; display:none; }
+  .btn-confirmar {
+    width:100%; border:none; background:var(--verde); color:#fff;
+    font-family:'Nunito'; font-weight:800; font-size:1.1rem;
+    padding:14px; border-radius:12px; cursor:pointer;
+  }
+  .btn-confirmar:disabled { background:#ccc; cursor:default; }
+
+  /* TELA DE SUCESSO */
+  #tela-sucesso {
+    display:none; position:fixed; inset:0; z-index:60;
+    background:linear-gradient(135deg,#5BAD6F,#3a9958);
+    flex-direction:column; align-items:center; justify-content:center;
+    padding:30px; text-align:center; color:#fff;
+  }
+  #tela-sucesso .check { font-size:5rem; margin-bottom:16px; animation: pop .5s ease; }
+  #tela-sucesso h2 { font-family:'Baloo 2'; font-size:2rem; margin-bottom:8px; }
+  #tela-sucesso .resumo { font-size:1rem; opacity:.9; margin-bottom:6px; }
+  #tela-sucesso .novo-saldo { font-family:'Baloo 2'; font-size:1.6rem; margin:12px 0; }
+  #tela-sucesso .itens-ped { background:rgba(255,255,255,.2); border-radius:12px;
+    padding:12px 20px; margin:10px 0; font-size:.9rem; line-height:1.7; }
+  .btn-novo-pedido {
+    border:2px solid rgba(255,255,255,.7); background:transparent;
+    color:#fff; border-radius:12px; padding:12px 28px;
+    font-family:'Nunito'; font-weight:800; font-size:1rem;
+    cursor:pointer; margin-top:16px;
+  }
+
+  @keyframes pop {
+    0% { transform: scale(0); }
+    70%{ transform: scale(1.15); }
+    100%{ transform: scale(1); }
+  }
+
+  /* TOAST */
+  .toast {
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(80px);
+    background:#333; color:#fff; padding:12px 24px; border-radius:12px;
+    font-weight:700; font-size:.9rem; opacity:0; transition:all .3s; z-index:99;
+  }
+  .toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
+  .toast.verde { background:var(--verde); }
+  .toast.vermelho { background:#CC3300; }
+</style>
+</head>
+<body>
+
+<!-- ══ TELA 1: SCAN ══ -->
+<div id="tela-scan">
+  <div class="scan-box">
+    <div class="scan-icon">📷</div>
+    <h2>Identifique-se para pedir</h2>
+    <p style="color:rgba(255,255,255,.8);font-size:.9rem;margin-bottom:16px">
+      Abra o app do seu colégio ou peça à cantina o seu QR Code
+    </p>
+    <input type="text" class="input-token" id="input-token"
+      placeholder="Cole ou digite o código aqui"
+      oninput="this.value = this.value.replace(/[^a-zA-Z0-9]/g,'')">
+    <button class="btn-entrar" onclick="entrarComToken()">Entrar na Cantina ▶</button>
+  </div>
+</div>
+
+<!-- ══ TELA 2: CARDÁPIO ══ -->
+<div id="tela-cardapio">
+  <div class="top-aluno">
+    <div class="info">
+      <div class="avatar" id="avatar-letra">?</div>
+      <div>
+        <div class="nome-aluno" id="nome-aluno">—</div>
+        <div class="turma-aluno" id="turma-aluno">—</div>
+      </div>
+    </div>
+    <div class="saldo-top">
+      <div class="lbl">Saldo</div>
+      <div class="val" id="saldo-top">R$ 0,00</div>
+    </div>
+  </div>
+
+  <div class="filtros">
+    <button class="btn-cat ativo" onclick="filtrar('Todos',this)">🍽 Todos</button>
+    <button class="btn-cat" onclick="filtrar('Salgado',this)">🥧 Salgado</button>
+    <button class="btn-cat" onclick="filtrar('Biscoito',this)">🍪 Biscoito</button>
+    <button class="btn-cat" onclick="filtrar('Doce',this)">🍬 Doce</button>
+    <button class="btn-cat" onclick="filtrar('Bebida',this)">🥤 Bebida</button>
+  </div>
+
+  <div class="grade-wrap">
+    <div class="grade" id="grade-prod"></div>
+  </div>
+
+  <button class="carr-btn" id="carr-btn" onclick="abrirCarrinho()">
+    🛒 Ver pedido
+    <span class="carr-badge" id="carr-badge">0</span>
+  </button>
+</div>
+
+<!-- ══ TELA 3: CARRINHO ══ -->
+<div id="tela-carrinho" onclick="if(event.target===this)fecharCarrinho()">
+  <div class="carr-modal">
+    <div class="carr-cab">
+      <h2>🛒 Meu pedido</h2>
+      <button class="btn-fechar-carr" onclick="fecharCarrinho()">✕</button>
+    </div>
+    <div class="carr-lista" id="carr-lista"></div>
+    <div class="carr-rod">
+      <div class="carr-total" id="carr-total">Total: R$ 0,00</div>
+      <div class="saldo-insuf" id="saldo-insuf">⚠ Saldo insuficiente para este pedido!</div>
+      <button class="btn-confirmar" id="btn-confirmar" onclick="confirmarPedido()">
+        ✅ Confirmar pedido
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TELA 4: SUCESSO ══ -->
+<div id="tela-sucesso">
+  <div class="check">✅</div>
+  <h2>Pedido feito!</h2>
+  <div class="resumo">Aguarde o funcionário chamar seu nome:</div>
+  <div class="resumo" id="suc-nome" style="font-weight:800;font-size:1.2rem"></div>
+  <div class="itens-ped" id="suc-itens"></div>
+  <div class="novo-saldo">Saldo restante: <span id="suc-saldo"></span></div>
+  <button class="btn-novo-pedido" onclick="novoPedido()">← Fazer outro pedido</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const icones = {Salgado:'🥧',Biscoito:'🍪',Doce:'🍬',Bebida:'🥤'};
+const coresCat = {Salgado:'#FDE8CC',Biscoito:'#F5E6D3',Doce:'#FFE0EC',Bebida:'#D8F4F8'};
+const coresTexto = {Salgado:'#B35A00',Biscoito:'#7A4520',Doce:'#B00040',Bebida:'#006D7A'};
+const fmt = v => "R$ " + v.toFixed(2).replace(".", ",");
+
+let matriculaAtual = "";
+let dadosAluno = null;
+let todosProds = [];
+let catAtiva   = "Todos";
+let carrinho   = [];
+
+function toast(msg, tipo="", ms=2800) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.className = `toast show ${tipo}`;
+  setTimeout(() => t.className = "toast", ms);
+}
+
+// ── Entrar com token ─────────────────────────────────────────────────────────
+async function entrarComToken() {
+  const token = document.getElementById("input-token").value.trim();
+  if (!token) { toast("Cole o código do QR Code!", "vermelho"); return; }
+  await carregarAluno(token.trim().toUpperCase());
+}
+
+async function carregarAluno(matricula) {
+  const r = await fetch(`/api/saldo/aluno/${token}`);
+  const d = await r.json();
+  if (d.erro) { toast("QR Code inválido. Tente novamente.", "vermelho"); return; }
+  matriculaAtual = matricula;
+  dadosAluno = d;
+  carrinho   = [];
+
+  document.getElementById("nome-aluno").textContent  = d.nome;
+  document.getElementById("turma-aluno").textContent = d.turma || "Aluno";
+  document.getElementById("avatar-letra").textContent = d.nome[0].toUpperCase();
+  document.getElementById("saldo-top").textContent    = fmt(d.saldo);
+
+  document.getElementById("tela-scan").style.display     = "none";
+  document.getElementById("tela-cardapio").style.display = "block";
+
+  await carregarProdutos();
+}
+
+// ── Produtos ─────────────────────────────────────────────────────────────────
+async function carregarProdutos() {
+  const r = await fetch("/api/produtos?categoria=Todos&busca=");
+  todosProds = await r.json();
+  renderGrade();
+}
+
+function filtrar(cat, btn) {
+  catAtiva = cat;
+  document.querySelectorAll(".btn-cat").forEach(b => b.classList.remove("ativo"));
+  btn.classList.add("ativo");
+  renderGrade();
+}
+
+function renderGrade() {
+  const prods = catAtiva === "Todos" ? todosProds : todosProds.filter(p => p.categoria === catAtiva);
+  const grade = document.getElementById("grade-prod");
+  grade.innerHTML = prods.map(p => {
+    const foto = p.foto_b64
+      ? `<img src="data:image/jpeg;base64,${p.foto_b64}" alt="${p.nome}">`
+      : `<span>${icones[p.categoria]||'🍽'}</span>`;
+    const sem = p.estoque === 0;
+    return `<div class="card-prod${sem?' no-estoque':''}" onclick="addCarrinho(${p.id})">
+      <div class="card-foto">${foto}</div>
+      <div class="card-body">
+        <span class="card-cat" style="background:${coresCat[p.categoria]};color:${coresTexto[p.categoria]}">${p.categoria}</span>
+        <div class="card-nome">${p.nome}</div>
+        <div class="card-preco">${fmt(p.preco)}</div>
+        <div class="card-est">${sem ? '❌ Esgotado' : `Disponível: ${p.estoque}`}</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ── Carrinho ─────────────────────────────────────────────────────────────────
+function addCarrinho(id) {
+  const prod = todosProds.find(p => p.id === id);
+  if (!prod) return;
+  const item = carrinho.find(i => i.id === id);
+  if (item) item.qtd++;
+  else carrinho.push({id: prod.id, nome: prod.nome, preco: prod.preco, qtd: 1});
+  atualizarBotaoCarrinho();
+  toast(`✓ ${prod.nome} adicionado!`, "", 1000);
+}
+
+function atualizarBotaoCarrinho() {
+  const total = carrinho.reduce((s,i) => s + i.qtd, 0);
+  const btn = document.getElementById("carr-btn");
+  btn.style.display = total > 0 ? "flex" : "none";
+  document.getElementById("carr-badge").textContent = total;
+}
+
+function abrirCarrinho() {
+  renderCarrinho();
+  document.getElementById("tela-carrinho").style.display = "flex";
+}
+
+function fecharCarrinho() {
+  document.getElementById("tela-carrinho").style.display = "none";
+}
+
+function renderCarrinho() {
+  const lista = document.getElementById("carr-lista");
+  lista.innerHTML = carrinho.map((item, i) => `
+    <div class="carr-item">
+      <div>
+        <div class="carr-item-nome">${item.nome}</div>
+        <div class="carr-item-sub">${fmt(item.preco)} × ${item.qtd} = ${fmt(item.preco*item.qtd)}</div>
+      </div>
+      <div class="carr-qtds">
+        <button class="btn-qtd" onclick="mudaQtd(${i},-1)">−</button>
+        <b>${item.qtd}</b>
+        <button class="btn-qtd" onclick="mudaQtd(${i},+1)">+</button>
+      </div>
+    </div>`).join("");
+
+  const total = carrinho.reduce((s,i) => s + i.preco*i.qtd, 0);
+  document.getElementById("carr-total").textContent = "Total: " + fmt(total);
+
+  const saldoOk = dadosAluno && dadosAluno.saldo >= total;
+  const insuf = document.getElementById("saldo-insuf");
+  const btnConf = document.getElementById("btn-confirmar");
+  insuf.style.display = (!saldoOk && total > 0) ? "block" : "none";
+  btnConf.disabled = !saldoOk || total === 0;
+}
+
+function mudaQtd(i, delta) {
+  carrinho[i].qtd = Math.max(0, carrinho[i].qtd + delta);
+  if (carrinho[i].qtd === 0) carrinho.splice(i, 1);
+  atualizarBotaoCarrinho();
+  renderCarrinho();
+  if (!carrinho.length) fecharCarrinho();
+}
+
+// ── Confirmar pedido ──────────────────────────────────────────────────────────
+async function confirmarPedido() {
+  if (!carrinho.length) return;
+  document.getElementById("btn-confirmar").disabled = true;
+  document.getElementById("btn-confirmar").textContent = "⏳ Processando...";
+
+  const r = await fetch("/api/tablet/pedido", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({matricula: matriculaAtual, carrinho})
+  });
+  const d = await r.json();
+
+  if (d.erro) {
+    toast(d.erro, "vermelho", 4000);
+    document.getElementById("btn-confirmar").disabled = false;
+    document.getElementById("btn-confirmar").textContent = "✅ Confirmar pedido";
+    return;
+  }
+
+  // Tela de sucesso
+  fecharCarrinho();
+  document.getElementById("suc-nome").textContent = d.nome;
+  document.getElementById("suc-itens").innerHTML =
+    d.itens.map(i => `${i.nome} × ${i.qtd} → ${fmt(i.sub)}`).join("<br>");
+  document.getElementById("suc-saldo").textContent = fmt(d.novo_saldo);
+
+  dadosAluno.saldo = d.novo_saldo;
+  document.getElementById("saldo-top").textContent = fmt(d.novo_saldo);
+
+  document.getElementById("tela-sucesso").style.display = "flex";
+  carrinho = [];
+  atualizarBotaoCarrinho();
+}
+
+function novoPedido() {
+  document.getElementById("tela-sucesso").style.display = "none";
+  document.getElementById("btn-confirmar").disabled = false;
+  document.getElementById("btn-confirmar").textContent = "✅ Confirmar pedido";
+  // Volta para tela de scan para próximo aluno
+  document.getElementById("tela-cardapio").style.display = "none";
+  document.getElementById("tela-scan").style.display     = "flex";
+  document.getElementById("input-token").value = "";
+  matriculaAtual = null; dadosAluno = null;
+}
+
+// Suporte a leitura de QR Code pela câmera (foco automático no input)
+document.getElementById("input-token").focus();
+</script>
+</body>
+</html>

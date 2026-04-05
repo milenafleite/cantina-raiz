@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cantina – {{ pessoa.nome }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root {
+    --laranja: #F47920;
+    --verde:   #5BAD6F;
+    --fundo:   #FFF8F0;
+    --texto:   #2C1800;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito', sans-serif; background: var(--fundo); color: var(--texto); min-height: 100vh; }
+
+  .topo {
+    background: var(--laranja);
+    padding: 14px 20px;
+    display: flex; align-items: center; gap: 12px;
+    box-shadow: 0 3px 12px rgba(0,0,0,.2);
+  }
+  .topo img { height: 52px; }
+  .topo h1 { font-family: 'Baloo 2'; font-size: 1.3rem; color: #fff; font-weight: 800; }
+  .topo p  { color: #FFE0B2; font-size: .82rem; font-weight: 600; }
+
+  .container { max-width: 520px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  /* CARD SALDO */
+  .card-saldo {
+    background: linear-gradient(135deg, var(--laranja), #e06510);
+    border-radius: 20px;
+    padding: 24px;
+    color: #fff;
+    text-align: center;
+    box-shadow: 0 6px 28px rgba(244,121,32,.35);
+    margin-bottom: 20px;
+  }
+  .card-saldo .nome { font-size: 1.1rem; font-weight: 800; opacity: .9; margin-bottom: 2px; }
+  .card-saldo .turma { font-size: .8rem; opacity: .75; margin-bottom: 16px; }
+  .card-saldo .lbl-saldo { font-size: .85rem; opacity: .85; margin-bottom: 4px; }
+  .card-saldo .valor-saldo {
+    font-family: 'Baloo 2'; font-size: 3rem; font-weight: 800; line-height: 1;
+  }
+  .card-saldo .aviso-baixo {
+    background: rgba(255,255,255,.2); border-radius: 10px;
+    padding: 6px 14px; font-size: .8rem; font-weight: 700; margin-top: 12px; display: none;
+  }
+
+  /* SEÇÃO */
+  .secao { background: #fff; border-radius: 16px; padding: 18px; margin-bottom: 16px;
+           box-shadow: 0 2px 12px rgba(244,121,32,.1); border: 1.5px solid #FFE5C8; }
+  .secao h3 { font-family: 'Baloo 2'; font-size: 1rem; color: var(--laranja);
+              font-weight: 800; margin-bottom: 14px; }
+
+  /* QR CODE PIX */
+  .pix-wrap { text-align: center; }
+  #qrcode-pix { display: inline-block; padding: 12px; background: #fff;
+                border-radius: 12px; border: 2px solid #FFD4A0; margin: 10px 0; }
+  #qrcode-pix img, #qrcode-pix canvas { border-radius: 8px; }
+  .pix-chave-box {
+    background: var(--fundo); border-radius: 10px; padding: 10px 14px;
+    font-size: .82rem; word-break: break-all; margin: 8px 0;
+    border: 1.5px solid #FFD4A0; text-align: left;
+  }
+  .pix-chave-box b { color: var(--laranja); }
+  .instrucoes { font-size: .82rem; color: #888; text-align: center; margin: 6px 0 12px; line-height: 1.5; }
+
+  /* FORM RECARGA */
+  .form-recarga { display: flex; gap: 8px; margin-top: 10px; }
+  .form-recarga input {
+    flex: 1; border: 1.5px solid #FFD4A0; border-radius: 10px;
+    padding: 10px 14px; font-family: 'Nunito'; font-size: 1rem;
+    color: var(--texto); outline: none;
+  }
+  .form-recarga input:focus { border-color: var(--laranja); }
+  .btn-pix {
+    border: none; border-radius: 10px; padding: 10px 18px;
+    background: #32BCAD; color: #fff; font-family: 'Nunito';
+    font-weight: 800; font-size: .9rem; cursor: pointer; white-space: nowrap;
+  }
+  .btn-pix:hover { background: #28a89a; }
+
+  /* HISTÓRICO */
+  .hist-item {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 8px 0; border-bottom: 1px solid #FFE5C8; font-size: .85rem;
+  }
+  .hist-item:last-child { border-bottom: none; }
+  .hist-item .desc { color: #666; font-size: .75rem; margin-top: 2px; }
+  .hist-item .val-pos { color: var(--verde); font-weight: 800; }
+  .hist-item .val-neg { color: #CC3300; font-weight: 800; }
+  .hist-vazio { text-align: center; color: #ccc; padding: 20px; font-size: .9rem; }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--texto); color: #fff; padding: 12px 24px; border-radius: 12px;
+    font-weight: 700; font-size: .9rem; opacity: 0; transition: all .3s; z-index: 99;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  .toast.verde   { background: var(--verde); }
+  .toast.laranja { background: var(--laranja); }
+  .toast.vermelho{ background: #CC3300; }
+</style>
+</head>
+<body>
+
+<header class="topo">
+  <img src="data:image/jpeg;base64,{{ logo_b64 }}" alt="Colégio Curso Raiz">
+  <div>
+    <h1>Cantina Digital</h1>
+    <p>Colégio Curso Raiz</p>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- SALDO -->
+  <div class="card-saldo">
+    <div class="nome">{{ pessoa.nome }}</div>
+    <div class="turma">{{ pessoa.turma_cargo or 'Colégio Curso Raiz' }}</div>
+    <div class="lbl-saldo">Saldo disponível</div>
+    <div class="valor-saldo" id="valor-saldo">R$ {{ "%.2f"|format(saldo.saldo) | replace(".", ",") }}</div>
+    <div class="aviso-baixo" id="aviso-baixo">⚠ Saldo baixo! Faça uma recarga.</div>
+  </div>
+
+  <!-- QR CODE PIX -->
+  <div class="secao">
+    <h3>📱 Recarregar via Pix</h3>
+    <div class="pix-wrap">
+      <p class="instrucoes">Escaneie o QR Code abaixo com o app do banco ou copie a chave Pix:</p>
+      <div id="qrcode-pix"></div>
+      <div class="pix-chave-box">
+        <b>Chave Pix:</b> {{ pix_chave }}<br>
+        <b>Beneficiário:</b> {{ pix_nome }}<br>
+        <b>Identificação:</b> Cantina – {{ pessoa.nome }}
+      </div>
+      <p class="instrucoes">Após fazer o Pix, informe o valor e envie o comprovante pelo WhatsApp para a secretaria.</p>
+
+      <div class="form-recarga">
+        <input type="number" id="val-recarga" placeholder="R$ Valor enviado" step="0.50" min="1">
+        <button class="btn-pix" onclick="solicitarRecarga()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="margin-right:4px">
+            <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/>
+          </svg>
+          Já fiz o Pix!
+        </button>
+      </div>
+      <div id="wpp-confirm" style="display:none;background:#e8f5e9;border-radius:10px;padding:10px 14px;margin-top:10px;font-size:.82rem;color:#2e7d32;font-weight:700;text-align:center">
+        ✅ Solicitação registrada! O WhatsApp vai abrir para você enviar o comprovante à secretaria.
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTÓRICO -->
+  <div class="secao">
+    <h3>📋 Histórico de movimentações</h3>
+    <div id="historico-lista"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PESSOA_ID = {{ pessoa.id }};
+const MATRICULA = "{{ matricula }}";
+const fmt = v => "R$ " + Math.abs(v).toFixed(2).replace(".", ",");
+
+function toast(msg, tipo="laranja", ms=3000) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.className = `toast show ${tipo}`;
+  setTimeout(() => t.className = "toast", ms);
+}
+
+async function carregarDados() {
+  const r = await fetch(`/api/saldo/aluno/${MATRICULA}`);
+  const d = await r.json();
+  if (d.erro) return;
+
+  // Saldo
+  const saldoEl = document.getElementById("valor-saldo");
+  saldoEl.textContent = fmt(d.saldo);
+  const aviso = document.getElementById("aviso-baixo");
+  aviso.style.display = d.saldo < 5 ? "block" : "none";
+
+  // Histórico
+  const lista = document.getElementById("historico-lista");
+  if (!d.historico.length) {
+    lista.innerHTML = '<div class="hist-vazio">Nenhuma movimentação ainda.</div>';
+    return;
+  }
+  lista.innerHTML = d.historico.map(h => {
+    const pos = h.valor > 0;
+    const icon = pos ? "💰" : "🛒";
+    const tipo = pos ? "Recarga" : (h.tipo === "pedido_tablet" ? "Pedido tablet" : "Compra cantina");
+    return `<div class="hist-item">
+      <div>
+        <div><b>${icon} ${tipo}</b></div>
+        <div class="desc">${h.data}${h.obs ? ' — ' + h.obs : ''}</div>
+      </div>
+      <div class="${pos ? 'val-pos' : 'val-neg'}">${pos ? '+' : '-'}${fmt(h.valor)}</div>
+    </div>`;
+  }).join("");
+}
+
+const WHATSAPP_SECRETARIA = "5521967563458"; // número da secretaria
+
+async function solicitarRecarga() {
+  const val = parseFloat(document.getElementById("val-recarga").value);
+  if (!val || val < 1) { toast("Informe um valor válido!", "vermelho"); return; }
+
+  // 1. Registrar solicitação no sistema
+  const r = await fetch("/api/saldo/recarga/solicitar", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({
+      pessoa_id: PESSOA_ID,
+      valor: val,
+      obs: `Pix de ${fmt(val)} - Aluno: {{ pessoa.nome }}`
+    })
+  });
+  const d = await r.json();
+  if (!d.ok) { toast("Erro ao registrar. Tente novamente.", "vermelho"); return; }
+
+  // 2. Mostrar confirmação
+  document.getElementById("wpp-confirm").style.display = "block";
+  document.getElementById("val-recarga").value = "";
+
+  // 3. Montar mensagem do WhatsApp
+  const valorFmt = val.toFixed(2).replace(".", ",");
+  const mensagem =
+    `🏫 *Cantina Colégio Curso Raiz*\n\n` +
+    `📋 *Solicitação de Recarga de Saldo*\n\n` +
+    `👤 *Aluno:* {{ pessoa.nome }}\n` +
+    `🎓 *Turma:* {{ pessoa.turma_cargo or '' }}\n` +
+    `💰 *Valor enviado via Pix:* R$ ${valorFmt}\n` +
+    `🔑 *Chave Pix:* {{ pix_chave }}\n\n` +
+    `📎 _Segue o comprovante do Pix abaixo:_`;
+
+  // 4. Abrir WhatsApp após 1.5s (tempo para o usuário ver a confirmação)
+  setTimeout(() => {
+    const url = `https://wa.me/${WHATSAPP_SECRETARIA}?text=${encodeURIComponent(mensagem)}`;
+    window.open(url, "_blank");
+  }, 1500);
+
+  toast("✅ Abrindo WhatsApp...", "verde", 3000);
+}
+
+// Gerar QR Code Pix
+function gerarQRPix() {
+  const chave = "{{ pix_chave }}";
+  const nome  = "{{ pix_nome }}";
+  const texto = `Pix: ${chave} | ${nome} | Cantina - {{ pessoa.nome }}`;
+  new QRCode(document.getElementById("qrcode-pix"), {
+    text: chave,
+    width: 200, height: 200,
+    colorDark: "#2C1800", colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.M
+  });
+}
+
+gerarQRPix();
+carregarDados();
+// Atualizar saldo a cada 30s
+setInterval(carregarDados, 30000);
+</script>
+</body>
+</html>
