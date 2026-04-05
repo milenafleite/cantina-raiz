@@ -1468,6 +1468,7 @@ async function carregarExtrato(pid) {
       <button class="btn btn-dinheiro btn-sm" onclick="abrirQuitarModal(${p.id}, null, ${totalDev.toFixed(2)}, 'Quitar Tudo')">💰 Quitar Tudo</button>
       <a class="btn btn-ciano btn-sm" href="/api/export/extrato/${p.id}" target="_blank">📥 Excel</a>
       <button class="btn btn-sm" style="background:#8B6914;color:#fff" onclick="verQRAluno(${p.id},'${p.nome.replace(/'/g,'')}')">📱 QR Code</button>
+      <button class="btn btn-marrom btn-sm" onclick="abrirFormPessoa(${JSON.stringify(d.pessoa).replace(/"/g,'&quot;')})">✏ Editar</button>
     </div>
     <div class="tabela-wrap" style="max-height:300px;overflow-y:auto">
       <table>
@@ -1597,8 +1598,13 @@ async function salvarPessoa() {
     obs:         document.getElementById("fp-obs").value,
   }});
   if (r.erro) { toast(r.erro, "vermelho"); return; }
+  const idEditado = parseInt(document.getElementById("fp-id").value);
   toast("✓ Pessoa salva!", "verde");
-  fecharModal("ov-form-pessoa"); carregarContas();
+  fecharModal("ov-form-pessoa");
+  await carregarContas();
+  if (idEditado && estado.pessoaSelContas?.id === idEditado) {
+    carregarExtrato(idEditado);
+  }
 }
 function editarPessoaSel() {
   if (!estado.pessoaSelContas) { toast("Selecione uma pessoa!", "vermelho"); return; }
