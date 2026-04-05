@@ -6,6 +6,7 @@
 <title>Cantina - Colégio Curso Raiz</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Outfit:wght@700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
 <style>
 :root {
   --laranja:      #F47920;
@@ -354,6 +355,33 @@ tr.avista td { background: #F0F8FF; }
   border-radius: 8px; padding: 8px 12px; margin-bottom: 10px;
   font-size: .85rem; color: var(--dinheiro); font-weight: 700;
 }
+
+/* SCANNER */
+#scanner-overlay-main {
+  display: none; position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,.92); flex-direction: column;
+  align-items: center; justify-content: center; padding: 20px;
+}
+#scanner-overlay-main.ativo { display: flex; }
+#scanner-overlay-main h2 { color: #fff; font-family:'Outfit'; font-size:1.3rem; margin-bottom:14px; text-align:center; }
+#scanner-video-main-wrap {
+  position: relative; border-radius: 14px; overflow: hidden;
+  border: 3px solid var(--laranja); max-width: 320px; width: 100%;
+}
+#scanner-video-main { width: 100%; display: block; }
+.scanner-mira-main {
+  position: absolute; inset: 0; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.scanner-mira-main::before {
+  content: ''; width: 60%; aspect-ratio: 1;
+  border: 3px solid rgba(244,121,32,.9); border-radius: 10px;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,.4);
+  animation: pulse-main 1.5s ease-in-out infinite;
+}
+@keyframes pulse-main { 0%,100%{border-color:rgba(244,121,32,.8)} 50%{border-color:#fff} }
+#scanner-status-main { color: #FFE0B2; font-size:.88rem; margin-top:10px; font-weight:700; }
+#scanner-canvas-main { display: none; }
 </style>
 </head>
 <body>
@@ -606,6 +634,18 @@ tr.avista td { background: #F0F8FF; }
   </div>
 </div>
 
+<!-- SCANNER QR CODE (CONTAS) -->
+<div id="scanner-overlay-main">
+  <h2>📷 Aponte para o QR Code do aluno</h2>
+  <div id="scanner-video-main-wrap">
+    <video id="scanner-video-main" autoplay playsinline muted></video>
+    <div class="scanner-mira-main"></div>
+  </div>
+  <canvas id="scanner-canvas-main"></canvas>
+  <div id="scanner-status-main">Procurando QR Code...</div>
+  <button class="btn btn-cinza" style="margin-top:16px" onclick="fecharScannerMain()">✕ Cancelar</button>
+</div>
+
 <!-- CONTAS -->
 <div class="overlay" id="ov-contas">
   <div class="modal modal-grande">
@@ -618,6 +658,7 @@ tr.avista td { background: #F0F8FF; }
         <div style="display:flex;gap:8px;margin-bottom:10px">
           <input type="text" id="busca-contas" placeholder="🔍 Buscar..." oninput="carregarContas()"
             style="flex:1;border:1.5px solid var(--laranja-med);border-radius:8px;padding:7px 10px;font-family:Nunito;font-size:.85rem">
+          <button class="btn btn-laranja btn-sm" onclick="abrirScannerMain()" title="Escanear QR Code">📷</button>
           <button class="btn btn-verde btn-sm" onclick="abrirFormPessoa(null)">+ Nova</button>
         </div>
         <div class="tabela-wrap" style="max-height:420px;overflow-y:auto">
@@ -1468,7 +1509,6 @@ async function carregarExtrato(pid) {
       <button class="btn btn-dinheiro btn-sm" onclick="abrirQuitarModal(${p.id}, null, ${totalDev.toFixed(2)}, 'Quitar Tudo')">💰 Quitar Tudo</button>
       <a class="btn btn-ciano btn-sm" href="/api/export/extrato/${p.id}" target="_blank">📥 Excel</a>
       <button class="btn btn-sm" style="background:#8B6914;color:#fff" onclick="verQRAluno(${p.id},'${p.nome.replace(/'/g,'')}')">📱 QR Code</button>
-      <button class="btn btn-marrom btn-sm" onclick="abrirFormPessoa(${JSON.stringify(d.pessoa).replace(/"/g,'&quot;')})">✏ Editar</button>
     </div>
     <div class="tabela-wrap" style="max-height:300px;overflow-y:auto">
       <table>
@@ -1598,13 +1638,8 @@ async function salvarPessoa() {
     obs:         document.getElementById("fp-obs").value,
   }});
   if (r.erro) { toast(r.erro, "vermelho"); return; }
-  const idEditado = parseInt(document.getElementById("fp-id").value);
   toast("✓ Pessoa salva!", "verde");
-  fecharModal("ov-form-pessoa");
-  await carregarContas();
-  if (idEditado && estado.pessoaSelContas?.id === idEditado) {
-    carregarExtrato(idEditado);
-  }
+  fecharModal("ov-form-pessoa"); carregarContas();
 }
 function editarPessoaSel() {
   if (!estado.pessoaSelContas) { toast("Selecione uma pessoa!", "vermelho"); return; }
@@ -2115,6 +2150,74 @@ async function rejeitarRecarga(rid, btn) {
   btn.disabled = true;
   await api(`/api/saldo/recarga/${rid}/rejeitar`, {method:"POST", body:{}});
   toast("Recarga rejeitada.", "laranja"); carregarRecargas();
+}
+
+// ── Scanner QR Code (Contas) ─────────────────────────────────────────────────
+let _scanStream = null;
+let _scanLoop   = null;
+
+async function abrirScannerMain() {
+  try {
+    _scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment", width: { ideal: 1280 } }
+    });
+    const video = document.getElementById("scanner-video-main");
+    video.srcObject = _scanStream;
+    document.getElementById("scanner-overlay-main").classList.add("ativo");
+    document.getElementById("scanner-status-main").textContent = "Procurando QR Code...";
+    video.onloadedmetadata = () => { video.play(); _iniciarLoopMain(); };
+  } catch(e) {
+    toast("Câmera não disponível neste dispositivo.", "vermelho");
+  }
+}
+
+function fecharScannerMain() {
+  if (_scanLoop)   { cancelAnimationFrame(_scanLoop); _scanLoop = null; }
+  if (_scanStream) { _scanStream.getTracks().forEach(t => t.stop()); _scanStream = null; }
+  document.getElementById("scanner-overlay-main").classList.remove("ativo");
+}
+
+function _iniciarLoopMain() {
+  const video  = document.getElementById("scanner-video-main");
+  const canvas = document.getElementById("scanner-canvas-main");
+  const ctx    = canvas.getContext("2d");
+
+  function tick() {
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
+      if (code && code.data) {
+        const mat = code.data.trim().toUpperCase();
+        document.getElementById("scanner-status-main").textContent = "✅ QR Code lido!";
+        fecharScannerMain();
+        // Busca pessoa pela matrícula e seleciona no extrato
+        _buscarPessoaPorMatricula(mat);
+        return;
+      }
+    }
+    _scanLoop = requestAnimationFrame(tick);
+  }
+  _scanLoop = requestAnimationFrame(tick);
+}
+
+async function _buscarPessoaPorMatricula(matricula) {
+  const r = await api(`/api/saldo/aluno/${matricula}`);
+  if (r.erro) { toast("Matrícula não encontrada: " + matricula, "vermelho"); return; }
+  // Seleciona a pessoa na lista e carrega o extrato
+  toast(`✅ ${r.nome} identificado!`, "verde");
+  estado.pessoaSelContas = { id: r.pessoa_id, nome: r.nome };
+  carregarExtrato(r.pessoa_id);
+  // Destaca na tabela
+  await carregarContas();
+  document.querySelectorAll("#tb-contas tr").forEach(tr => {
+    if (tr.dataset.pid == r.pessoa_id) {
+      tr.style.background = "var(--laranja-clar)";
+      tr.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  });
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
