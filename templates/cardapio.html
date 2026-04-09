@@ -273,6 +273,12 @@
 
 <!-- FILTROS -->
 <div class="filtros-wrap">
+  <input type="text" id="busca-cardapio" placeholder="🔍 Buscar produto..."
+    oninput="renderizar()"
+    style="border:2px solid #FFD4A0;border-radius:20px;padding:6px 16px;
+           font-family:'Nunito',sans-serif;font-size:.85rem;font-weight:700;
+           color:#2C1800;outline:none;min-width:180px;transition:border-color .2s"
+    onfocus="this.style.borderColor='#F47920'" onblur="this.style.borderColor='#FFD4A0'">
   <button class="btn-cat ativo" onclick="filtrar('Todos',this)">🍽 Todos</button>
   <button class="btn-cat" onclick="filtrar('Salgado',this)">🥧 Salgados</button>
   <button class="btn-cat" onclick="filtrar('Biscoito',this)">🍪 Biscoitos</button>
@@ -316,13 +322,13 @@ function filtrar(cat, btn) {
 }
 
 function renderizar() {
-  const prods = catAtiva === 'Todos'
-    ? todosProds
-    : todosProds.filter(p => p.categoria === catAtiva);
+  const busca = (document.getElementById('busca-cardapio')?.value || '').toLowerCase().trim();
+  let prods = catAtiva === 'Todos' ? todosProds : todosProds.filter(p => p.categoria === catAtiva);
+  if (busca) prods = prods.filter(p => p.nome.toLowerCase().includes(busca));
 
   if (!prods.length) {
     document.getElementById('conteudo').innerHTML =
-      '<div class="vazio"><span>🍽</span><p>Nenhum produto disponível nesta categoria no momento.</p></div>';
+      '<div class="vazio"><span>🔍</span><p>Nenhum produto encontrado' + (busca ? ` para "<b>${busca}</b>"` : ' nesta categoria') + '.</p></div>';
     return;
   }
 
